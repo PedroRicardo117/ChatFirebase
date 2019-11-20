@@ -43,7 +43,7 @@ class MainActivity : AppCompatActivity() {
         MessageAdapter(this, R.layout.item_message, friendlyMessages)
     }
 
-    private var mUsername: String? = null
+    private lateinit var mUsername: String
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
