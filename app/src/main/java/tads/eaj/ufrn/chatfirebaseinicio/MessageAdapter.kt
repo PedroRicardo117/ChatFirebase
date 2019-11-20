@@ -10,14 +10,14 @@ import com.bumptech.glide.Glide
 import tads.eaj.ufrn.chatfirebaseinicio.R
 
 
-class MessageAdapter(var c:Context,var r:Int, var messages:ArrayList<FriendlyMessage> ) : ArrayAdapter<FriendlyMessage>(c, r) {
+class MessageAdapter(var c:Context,var r:Int, var messages:ArrayList<FriendlyMessage> ) : ArrayAdapter<FriendlyMessage>(c, r, messages) {
 
     override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
 
         var holder:MensagemViewHolder
         var view:View
         if (convertView == null){
-            view = LayoutInflater.from(c).inflate(R.layout.item_message, parent, false)
+            view = LayoutInflater.from(c).inflate(r, parent, false)
             holder = MensagemViewHolder(view)
             view.tag = holder
         }else{

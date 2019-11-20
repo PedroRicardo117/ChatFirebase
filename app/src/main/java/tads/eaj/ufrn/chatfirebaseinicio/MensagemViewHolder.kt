@@ -14,7 +14,7 @@ class MensagemViewHolder  (v: View){
 
     init {
         photoImageView = v.findViewById(R.id.photoImageView)
-        messageTextView = v.findViewById(R.id.messageEditText)
+        messageTextView = v.findViewById(R.id.messageTextView)
         authorTextView = v.findViewById(R.id.nameTextView)
     }
 
