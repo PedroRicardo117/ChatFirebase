@@ -20,4 +20,6 @@ package tads.eaj.ufrn.tadschatinicio
 Updated by taniro 12/11/2019
  */
 
-data class FriendlyMessage (var text: String,var name: String, var photoUrl: String?)
+data class FriendlyMessage (var text: String?,var name: String, var photoUrl: String?){
+    constructor() : this (null, "", null)
+}

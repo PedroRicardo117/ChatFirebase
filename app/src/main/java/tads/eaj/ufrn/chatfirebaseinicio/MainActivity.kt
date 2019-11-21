@@ -28,6 +28,7 @@ import android.text.InputFilter
 import android.text.TextWatcher
 import android.view.Menu
 import android.view.MenuItem
+import com.google.firebase.database.*
 import kotlinx.android.synthetic.main.activity_main.*
 
 
@@ -45,11 +46,21 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var mUsername: String
 
+    private lateinit var mFirebaseDatabase: FirebaseDatabase
+    private lateinit var mMessagesDatabaseReference: DatabaseReference
+
+    private lateinit var mChildEventListener: ChildEventListener
+
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         mUsername = ANONYMOUS
+
+        mFirebaseDatabase = FirebaseDatabase.getInstance()
+        mMessagesDatabaseReference = mFirebaseDatabase.reference.child("/messages")
+
 
         messageListView.adapter = mMessageAdapter
 
@@ -73,11 +84,27 @@ class MainActivity : AppCompatActivity() {
         })
 
         sendButton.setOnClickListener {
-            // TODO: Send messages on click
+
+            var friendlyMessage =  FriendlyMessage(messageEditText.text.toString(), mUsername, null)
+            mMessagesDatabaseReference.push().setValue(friendlyMessage)
 
             // Clear input box
             messageEditText.setText("");
         }
+
+        mChildEventListener = object : ChildEventListener {
+            override fun onChildRemoved(p0: DataSnapshot) {}
+            override fun onCancelled(p0: DatabaseError) {}
+            override fun onChildMoved(p0: DataSnapshot, p1: String?) {}
+            override fun onChildChanged(p0: DataSnapshot, p1: String?) {}
+            override fun onChildAdded(dataSnapshot: DataSnapshot, s: String?) {
+
+                var friendlyMessage = dataSnapshot.getValue(FriendlyMessage::class.java)
+                mMessageAdapter.add(friendlyMessage)
+            }
+        }
+
+        mMessagesDatabaseReference.addChildEventListener(mChildEventListener)
 
     }
 

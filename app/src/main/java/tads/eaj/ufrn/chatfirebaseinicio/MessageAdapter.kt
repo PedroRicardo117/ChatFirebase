@@ -16,6 +16,7 @@ class MessageAdapter(var c:Context,var r:Int, var messages:ArrayList<FriendlyMes
 
         var holder:MensagemViewHolder
         var view:View
+
         if (convertView == null){
             view = LayoutInflater.from(c).inflate(r, parent, false)
             holder = MensagemViewHolder(view)
