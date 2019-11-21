@@ -19,6 +19,7 @@ package tads.eaj.ufrn.chatfirebaseinicio
 /*
 Modified by Taniro 15/11/2019 to add support to kotlin
  */
+import android.content.Intent
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import tads.eaj.ufrn.tadschatinicio.FriendlyMessage
@@ -30,14 +31,23 @@ import android.view.Menu
 import android.view.MenuItem
 import com.google.firebase.database.*
 import kotlinx.android.synthetic.main.activity_main.*
-
-
+import com.google.firebase.database.FirebaseDatabase
+import androidx.core.app.ComponentActivity.ExtraData
+import androidx.core.content.ContextCompat.getSystemService
+import android.icu.lang.UCharacter.GraphemeClusterBreak.T
+import android.widget.Toast
+import com.firebase.ui.auth.AuthUI
+import com.google.firebase.auth.FirebaseAuth
+import java.util.*
+import java.util.Arrays.asList
+import kotlin.collections.ArrayList
 
 
 class MainActivity : AppCompatActivity() {
 
     val ANONYMOUS = "anonymous"
     val DEFAULT_MSG_LENGTH_LIMIT = 1000
+    private val CODIGO_LOGAR = 55
 
     private val friendlyMessages = ArrayList<FriendlyMessage>()
     private val mMessageAdapter by lazy {
@@ -49,7 +59,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var mFirebaseDatabase: FirebaseDatabase
     private lateinit var mMessagesDatabaseReference: DatabaseReference
 
-    private lateinit var mChildEventListener: ChildEventListener
+    private var mChildEventListener: ChildEventListener? = null
+
+    private lateinit var mFirebaseAuth: FirebaseAuth
+
+    private lateinit var mAuthStateListener: FirebaseAuth.AuthStateListener
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -61,8 +75,13 @@ class MainActivity : AppCompatActivity() {
         mFirebaseDatabase = FirebaseDatabase.getInstance()
         mMessagesDatabaseReference = mFirebaseDatabase.reference.child("/messages")
 
-
         messageListView.adapter = mMessageAdapter
+
+        mFirebaseDatabase = FirebaseDatabase.getInstance()
+
+        mFirebaseAuth = FirebaseAuth.getInstance()
+        mFirebaseAuth.addAuthStateListener(mAuthStateListener)
+
 
         // ImagePickerButton shows an image picker to upload a image for a message
         photoPickerButton.setOnClickListener {
@@ -70,7 +89,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         messageEditText.filters = arrayOf(InputFilter.LengthFilter(DEFAULT_MSG_LENGTH_LIMIT))
-        messageEditText.addTextChangedListener(object : TextWatcher{
+        messageEditText.addTextChangedListener(object : TextWatcher {
             override fun afterTextChanged(p0: Editable?) {
             }
 
@@ -80,18 +99,17 @@ class MainActivity : AppCompatActivity() {
             override fun onTextChanged(texto: CharSequence?, p1: Int, p2: Int, p3: Int) {
                 sendButton.isEnabled = texto.toString().trim().isNotEmpty()
             }
-
         })
 
         sendButton.setOnClickListener {
 
-            var friendlyMessage =  FriendlyMessage(messageEditText.text.toString(), mUsername, null)
+            var friendlyMessage = FriendlyMessage(messageEditText.text.toString(), mUsername, null)
             mMessagesDatabaseReference.push().setValue(friendlyMessage)
 
             // Clear input box
             messageEditText.setText("");
         }
-
+        /*
         mChildEventListener = object : ChildEventListener {
             override fun onChildRemoved(p0: DataSnapshot) {}
             override fun onCancelled(p0: DatabaseError) {}
@@ -103,9 +121,35 @@ class MainActivity : AppCompatActivity() {
                 mMessageAdapter.add(friendlyMessage)
             }
         }
+        mChildEventListener?.let { mMessagesDatabaseReference.addChildEventListener(it) }
+        */
 
-        mMessagesDatabaseReference.addChildEventListener(mChildEventListener)
-
+        mAuthStateListener =
+            FirebaseAuth.AuthStateListener { firebaseAuth ->
+            val user = firebaseAuth.currentUser
+            if (user != null) {
+                //logado
+                //Toast.makeText(MainActivity.this, "Logado", Toast.LENGTH_SHORT).show();
+                onSignInInitialize(user.displayName)
+            } else {
+                //não-logado
+                onSignOutCleanUp()
+                //chama o fluxo de login
+                startActivityForResult(
+                    AuthUI.getInstance()
+                        .createSignInIntentBuilder()
+                        .setIsSmartLockEnabled(false)
+                        .setAvailableProviders(
+                            asList(
+                                AuthUI.IdpConfig.GoogleBuilder().build(),
+                                AuthUI.IdpConfig.EmailBuilder().build()
+                            )
+                        )
+                        .build(),
+                    CODIGO_LOGAR
+                )
+            }
+        }
     }
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
@@ -114,7 +158,61 @@ class MainActivity : AppCompatActivity() {
         return true
     }
 
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        return super.onOptionsItemSelected(item)
+    private fun onSignInInitialize(username: String?) {
+        mUsername = username ?: ANONYMOUS
+        attachDatabaseReadListener()
+    }
+
+    private fun onSignOutCleanUp() {
+        mUsername = ANONYMOUS
+        mMessageAdapter.clear()
+        detachDatabaseReadListener()
+    }
+
+    private fun attachDatabaseReadListener() {
+        if (mChildEventListener == null) {
+            mChildEventListener = object : ChildEventListener {
+                override fun onChildAdded(dataSnapshot: DataSnapshot, s: String?) {
+                    val friendlyMessage = dataSnapshot.getValue(FriendlyMessage::class.java)
+                    mMessageAdapter.add(friendlyMessage)
+                }
+
+                override fun onChildChanged(dataSnapshot: DataSnapshot, s: String?) {}
+                override fun onChildRemoved(dataSnapshot: DataSnapshot) {}
+                override fun onChildMoved(dataSnapshot: DataSnapshot, s: String?) {}
+                override fun onCancelled(databaseError: DatabaseError) {}
+            }
+            mMessagesDatabaseReference.addChildEventListener(mChildEventListener!!)
+        }
+    }
+
+    private fun detachDatabaseReadListener() {
+        if (mChildEventListener != null) {
+            mMessagesDatabaseReference.removeEventListener(mChildEventListener!!)
+            mChildEventListener = null
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        mFirebaseAuth.addAuthStateListener(mAuthStateListener)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        mFirebaseAuth.removeAuthStateListener(mAuthStateListener)
+        detachDatabaseReadListener()
+        mMessageAdapter.clear()
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == CODIGO_LOGAR) {
+            if (resultCode == RESULT_OK) {
+                Toast.makeText(this, "Bem-vindo", Toast.LENGTH_SHORT).show()
+            } else if (resultCode == RESULT_CANCELED) {
+                finish()
+            }
+        }
     }
 }

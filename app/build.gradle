@@ -40,6 +40,9 @@ dependencies {
 
     implementation 'com.google.firebase:firebase-analytics:17.2.1'
     implementation 'com.google.firebase:firebase-database:19.2.0'
+
+    // FirebaseUI for Firebase Auth
+    implementation 'com.firebaseui:firebase-ui-auth:6.1.0'
 }
 
 apply plugin: 'com.google.gms.google-services'
